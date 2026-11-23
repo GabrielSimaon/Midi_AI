@@ -1,16 +1,16 @@
 ---
 name: unir-mids
-description: Une dois ou mais arquivos MIDI (.mid) em um pot-pourri (medley) coeso para palco ao vivo, ou corrige viradas desencaixadas em medleys existentes. Use quando o usuario pedir para unir MIDIs, montar pot-pourri/medley, corrigir viradas entre musicas com BPMs ou ritmos diferentes, fazer quebra de tempo entre faixas, equilibrar brilho e peso entre musicas de um medley, ou chamar a skill unir-mids.
+description: Une dois ou mais arquivos MIDI (.mid) em um pot-pourri (medley) coeso para palco ao vivo com virada de 1 compasso grudada no ritmo, ou corrige viradas desencaixadas em medleys existentes. Use quando o usuario pedir para unir MIDIs, montar pot-pourri/medley, fazer virada grudada no ritmo, corrigir viradas entre musicas com BPMs ou ritmos diferentes, fazer quebra de tempo entre faixas, equilibrar brilho, peso e normalizar volume entre musicas de um medley, ou chamar a skill unir-mids.
 ---
 # unir-mids
 
-Une multiplos arquivos MIDI (ou corrige transicoes de um medley pronto) com viradas musicais, quebras de tempo precisas, encaixe harmonico e equalizacao uniforme de brilho e peso, prontos para tocar no vanBasco e em teclados arranger General MIDI (como Yamaha PSR-S550).
+Une multiplos arquivos MIDI (ou corrige transicoes de um medley pronto) com virada de 1 compasso grudada no ritmo, encaixe harmonico preciso, brilho, peso e volume normalizado entre todas as musicas, prontos para tocar no vanBasco e em teclados arranger General MIDI (como Yamaha PSR-S550).
 
 ## When to Use
 
 - O usuario envia 2 ou mais arquivos `.mid` para juntar em um medley/pot-pourri.
 - O usuario envia um medley pronto cujas viradas entre musicas estao fora do tempo, apressadas ou com mudancas de BPM instaveis.
-- O usuario pede quebra de tempo (breque seco), transicao harmonica ou alinhamento de volume, brilho e peso entre musicas diferentes no mesmo arquivo MIDI.
+- O usuario pede virada grudada no ritmo, quebra de tempo, transicao harmonica ou alinhamento de brilho, peso e volume entre musicas diferentes no mesmo arquivo MIDI.
 
 ## Steps
 
@@ -18,46 +18,60 @@ Une multiplos arquivos MIDI (ou corrige transicoes de um medley pronto) com vira
 
 Antes de cortar ou emendar qualquer trecho, execute um script Python com `mido` para levantar o perfil completo de cada faixa (ou de cada segmento, se for um medley ja unido):
 
-- **Andamento (BPM) e mapa de tempo**: identificar o BPM principal, variacoes internas e ritardandos finais.
+- **Andamento (BPM) e mapa de tempo**: identificar o BPM principal, variacoes internas e ritardandos finais. Quando o usuario deixar a ordem livre, prefira a sequencia que sobe ou mantem a energia na virada (ex.: andamento ligeiramente menor -> maior).
 - **Formula de compasso e grade real**: verificar `time_signature` (4/4, 2/4, 6/8) e o deslocamento exato do tempo 1 (downbeat), pois muitos MIDIs comerciais nao comecam exatamente no tick 0 ou possuem offset de grade.
-- **Ritmo e estilo**: analisar o padrao de bateria no Canal 10 (bumbo, caixa, chimbal, percussao) para reconhecer se o groove e arrocha, sertanejo universitario, vanera, balada ou forro.
+- **Ritmo e estilo**: analisar o padrao de bateria no Canal 10 (bumbo, caixa, chimbal, percussao) para reconhecer o groove (disco/soul, pop, arrocha, sertanejo universitario, vanera, balada, forro).
 - **Harmonia e resolucao de frase**: identificar o acorde final de resolucao da musica A (junto com a letra/melodia para nunca cortar no meio de uma palavra ou frase) e o acorde de entrada da musica B.
-- **Dinamica e automacao**: mapear `program_change`, `CC7` (volume), `CC74` (brilho), `CC64` (sustain), canais de voz guia mutados (`CC7=0`), fade-outs automatizados e eventuais mensagens SysEx ou Bank Select fora de GM.
+- **Dinamica e automacao**: mapear `program_change`, `CC7` (volume), `CC74` (brilho), `CC64` (sustain), `velocity` media por instrumento, canais de voz guia mutados (`CC7=0`), fade-outs automatizados e eventuais mensagens SysEx ou Bank Select (`CC0`/`CC32`) fora de GM.
 
-### 2. Escolher a estrategia de transicao (ritmo, BPM e harmonia)
+### 2. Escolher a estrategia de transicao (padrao: virada grudada no ritmo)
 
-Defina o tipo de virada a partir da relacao entre a musica A e a musica B:
+Defina a virada a partir da relacao entre a musica A e a musica B, priorizando sempre manter o pulso firme e natural ao vivo:
 
-- **BPMs diferentes ou ritmos contrastantes (padrao recomendado - quebra de tempo direta)**: evite rampas de BPM durante viradas de bateria, pois o cerebro do musico e do cantor perde a referencia de pulso quando a virada acelera ou desacelera. Em vez disso, crie um breque seco no tempo 1 da resolucao harmonica da musica A (acorde cheio + Crash1 no Canal 10), sustente por 1.5 a 2 tempos, solte todas as notas com `note_off` + `CC64=0` e deixe um respiro curto de silencio (1 a 1.5 tempos) para zerar a memoria do andamento anterior.
-- **Troca de timbres dentro do silencio**: envie o reset limpo de canais (`CC64=0`, `CC123=0`, `CC121=0`, `program_change`, `CC7`, `CC74`, `CC10`, `CC91`) e o novo `set_tempo` fixo no meio do silencio (pelo menos 0.5 a 1 tempo antes da primeira nota da virada). Isso evita engasgos de polifonia ou cortes de ataque em teclados arranger.
-- **Entrada direta na virada travada no novo BPM**: por padrao, entre direto na virada ou intro de bateria da musica B ja 100% travada no BPM novo, sem contagem de baqueta (so inclua contagem `1-2-3-4` no SideStick 37 se o usuario pedir explicitamente).
-- **Ancoragem da virada no pulso novo**: se a intro/virada de bateria da musica B for esparsa ou solta, reforce os tempos fortes com bumbo firme (nota 35 ou 36) e uma chamada curta de caixa (nota 38 em semicolcheia antes do tempo 1) para cravar a entrada da banda inteira no mesmo tick do downbeat da musica B.
-- **Encaixe harmonico**: garanta que o corte da musica A aconteca em um acorde de repouso (tonica ou dominante resolvida) e que nenhuma nota residual ou silaba de letra da frase seguinte vaze para dentro do breque. Se a musica A terminar em crescendo de prato ou ritardando, feche o crescendo com um ataque limpo de Crash1 + bumbo suave antes do respiro de silencio.
-- **BPMs iguais ou muito proximos (diferenca <= 4 BPM) e mesmo estilo**: quando a harmonia permitir (mesma tonalidade, relativa ou preparacao V-I), pode-se usar virada continua de 1 compasso sem silencio, desde que o `set_tempo` mude de forma limpa no inicio da virada e a grade de compasso bata exatamente no tempo 1.
+- **Padrao principal — Virada de 1 compasso grudada no ritmo (sem buraco de silencio)**:
+  - Use como padrao para medleys dançantes/ao vivo (mesmo estilo ou estilos compativeis, com BPMs iguais ou proximos) e sempre que o usuario pedir virada grudada no ritmo.
+  - **Tempo 1.0 do compasso de virada (resolucao da musica A)**: feche a ultima frase/palavra da musica A sobre o acorde de tonica + Bumbo (`36`, vel ~122) + Crash1 (`49`, vel ~118), e troque o `set_tempo` **de forma limpa e imediata** para o BPM fixo da musica B ja neste tempo 1 (zero rampa de BPM durante a virada!).
+  - **Tempo 2.0**: solte todas as notas melodicas/harmonicas da musica A com `note_off` + `CC64=0` + `CC123=0`, mantendo a bateria no Canal 10 tocando continuamente sem perder o pulso.
+  - **Tempo 2.5 (inicializacao silenciosa da musica B)**: envie nos canais melodicos o reset limpo e os novos timbres (`CC121=0`, `program_change`, `CC7`, `CC11=127`, `CC74`, `CC10`, `CC91`, `CC93`). Isso da ~0,6s a 0,8s de folga antes da primeira nota da musica B, evitando engasgos de polifonia ou cortes de ataque no Yamaha PSR-S550.
+  - **Construcao da virada de bateria (Canal 10, GM Standard Kit `PC=0`, 100% travada no BPM novo)**:
+    - **Tempo 1.0**: Bumbo (`36`, vel ~122) + Crash1 (`49`, vel ~118)
+    - **Tempo 2.0**: Bumbo (`36`, vel ~114) + Caixa (`38`, vel ~112) + Chimbal fechado (`42`, vel ~92), com resposta de Caixa (`38`, vel ~96) no contratempo **2.5**
+    - **Tempos 3.0 a 3.75**: Cascata de tons em semicolcheias — Tom agudo (`48`) em **3.0** e **3.25** + Tom medio (`45`) em **3.5** e **3.75**, ancorada por Bumbo (`36`, vel ~116) em **3.0**
+    - **Tempo 4.0 a 4.75**: Bumbo (`36`, vel ~118) + Caixa (`38`, vel ~118) + Surdo (`43`, vel ~114) em **4.0**, fechando com chamada firme de Caixa (`38`) em **4.5** e semicolcheia **4.75** (vel ~122) cravando a entrada!
+  - **Compasso seguinte, Tempo 1.0 (entrada explosiva da musica B)**: quantize todas as notas de ataque inicial da musica B para o mesmo tick exato do downbeat e reforce o tempo 1 com Bumbo (`36`, vel ~124) + Crash duplo (`49` vel ~122 + `57` vel ~110).
+  - Nao inclua contagem de baqueta (`1-2-3-4` no SideStick 37), a menos que o usuario peca explicitamente.
 
-### 3. Equilibrar brilho, peso e compatibilidade GM
+- **Alternativa — Quebra de tempo seca com respiro curto** (usar apenas quando houver contraste radical de BPM/estilo que nao comporte virada continua, como balada lenta para forro rapido, ou quando o usuario pedir breque seco):
+  - Faca um breque seco no tempo 1 da resolucao harmonica da musica A (acorde cheio + Crash1), sustente 1,5 a 2 tempos, solte todas as notas (`note_off` + `CC64=0`), deixe 1 a 1,5 tempos de silencio, envie a inicializacao silenciosa + novo `set_tempo` fixo no meio do silencio e entre direto na virada/intro da musica B travada no novo BPM.
 
-Para que todas as musicas do medley tenham a mesma pressao ao vivo sem degraus de volume:
+### 3. Equilibrar brilho, peso, normalizacao de volume e compatibilidade GM
 
-- **Uniformizar peso (baixo e bateria)**: nivele `CC7` de bateria (faixa de 106-112) e baixo (faixa de 112-118) entre todas as musicas e aplique reforco moderado de velocity (+8% a +16%, limitado a 127) em bumbo (35/36), caixa (38/40), pratos (49/57) e baixo, sem exagerar em chocalhos/maracas.
-- **Abrir brilho sem estridente**: ajuste `CC74` (Brightness) entre 82 e 88 em violoes, guitarras, pianos, metais/sax e cordas, 74 a 76 na bateria e 72 a 74 no baixo.
-- **Preservar automacoes reais**: se algum canal tiver fade-out ou crescendo via multiplos eventos `CC7`, escale os valores proporcionalmente com teto em vez de sobrescrever com valor fixo. Mantenha canais de voz guia em `CC7=0` quando ja estiverem mutados.
-- **Limpeza para Yamaha PSR-S550 e vanBasco**: use apenas General MIDI puro (Canal 10 limpo com `PC=0`, sem `XG System On`, sem `GM System On` no meio do arquivo, sem `CC32` proprietario fora de GM e sem `CC120` All Sound Off que corte secamente a cauda de prato/reverb).
+Para que todas as musicas do medley tenham exatamente a mesma pressao e volume ao vivo, sem degraus na troca de faixa:
+
+- **Normalizacao real de volume (velocity + CC7)**: calcule a `velocity` media de cada instrumento nas duas musicas e normalize para a mesma faixa-alvo antes de unir (ex.: Piano ~96, Guitarra base ~96, Solo ~106, Sopro 1 ~102, Sopro 2 ~96, Baixo ~112, Strings/Coral ~78–84), garantindo que a media global de velocity entre as musicas fique praticamente identica.
+- **Uniformizar peso (baixo e bateria)**:
+  - Nivele `CC7` de bateria (`112`) e baixo (`116`) com `CC11=127` em todas as musicas.
+  - Normalize as pecas da bateria no Canal 10: Bumbo (`35/36`) ~118, Caixa (`38/40`) ~112, Tons ~108, Pratos Crash (`49/57`) ~116, mantendo Chimbal (`42/44/46`) ~92 e Pandeiro/Percussao (`54`) controlado ~82 sem soar estridente.
+  - Separe `Bateria (GM Kit)` e `Chimbal / Percussao` em duas faixas limpas no Canal 10 (`PC=0`).
+- **Abrir brilho sem estridente (`CC74`)**: ajuste `CC74` (Brightness) entre `84` e `88` em pianos, violoes, guitarras, metais/sopros e cordas, `76` na bateria e `74` no baixo, com `CC91` (reverb) seco no baixo (`8`), moderado na bateria (`24`) e aberto na harmonia/metais (`30–42`).
+- **Preservar automacoes reais**: se algum canal tiver fade-out ou crescendo via multiplos eventos `CC7`, escale os valores proporcionalmente ao novo teto em vez de sobrescrever com valor fixo. Mantenha canais de voz guia em `CC7=0` quando ja estiverem mutados.
+- **Limpeza para Yamaha PSR-S550 e vanBasco**: converta para `960 PPQN`, `SMF Format 1`, General MIDI puro — Canal 10 obrigatoriamente em `PC=0` (GM Standard Kit), zero `SysEx` (`XG System On` / `GM System On`), zero Bank Select proprietario (`CC0`/`CC32`) e zero `CC120` (All Sound Off).
+- **Letras sincronizadas em `.mid` e `.kar`**: preserve todas as letras existentes e recem-sincronizadas em codificacao `latin1` (`iso-8859-1`), entregando tanto `.mid` (`0xFF 0x05` com `\r`) quanto `.kar` (cabecalho `Soft Karaoke` + faixa `Words` `0xFF 0x01` + `0xFF 0x05`).
 
 ### 4. Auditar o arquivo gerado antes de entregar
 
-Rode uma verificacao automatizada em Python no MIDI final e confirme todos os criterios antes de apresentar o arquivo ao usuario:
+Rode uma verificacao automatizada em Python nos arquivos finais (`.mid` e `.kar`) e confirme todos os criterios antes de entregar:
 
-- Zero notas presas (todo `note_on` com velocity > 0 possui `note_off` correspondente antes da troca de musica e antes do fim do arquivo).
-- Zero mensagens SysEx no meio do medley.
-- Mapa de andamento limpo (nenhuma rampa de BPM dentro de viradas de bateria; cada musica e sua virada travadas no BPM exato).
-- Letras de karaoke e marcadores (`marker`) preservados e sincronizados, sem silabas vazadas apos os cortes.
-- Timestamps reais (mm:ss) conferidos para cada breque e entrada de musica.
+- Zero notas presas (`hanging == 0` antes da virada e no fim do arquivo).
+- Zero mensagens `SysEx`, zero `CC0`/`CC32` e zero `CC120`; Canal 10 exclusivamente em `PC=0`.
+- Mapa de andamento limpo (zero rampas de BPM; cada musica e a virada travadas no BPM exato).
+- `Velocity` media normalizada e equilibrada entre todas as musicas do medley.
+- Letras em `latin1` (acentos verificados em binario sem UTF-8) e marcadores (`marker`) sincronizados nos timestamps exatos (`mm:ss`).
 
 ## Gotchas
 
-- **Rampas de BPM em viradas**: nunca distribua varios `set_tempo` graduais em cima de um fill de bateria; isso quebra a sensacao ritmica ao vivo. Quebre o tempo com breque + respiro e entre ja travado no novo BPM.
-- **Cortes fora da grade**: muitos MIDIs tem a frase real deslocada (ex.: downbeat em `.856` de um compasso). Sempre localize o downbeat real olhando bumbo, baixo e mudanca de acorde antes de cortar.
-- **Reset `GM System On` no meio do medley**: enviar SysEx `F0 7E 7F 09 01 F7` no meio de um arquivo provoca mudo momentaneo ou engasgo em teclados arranger. Substitua por resets suaves de controladores (`CC64=0`, `CC123=0`, `CC121=0`) + `program_change` durante o silencio.
-- **Sobrescrever fade-outs ao subir volume**: sempre cheque a contagem de eventos `CC7` por canal antes de normalizar volumes para nao destruir fade-outs originais.
-- **Notas desalinhadas na entrada da banda**: em alguns MIDIs comerciais, baixo/acorde e bateria entram com 4 a 12 ticks de diferenca no primeiro compasso; quantize o downbeat de entrada da musica B para que toda a banda ataque junta apos a virada.
+- **Rampas de BPM em viradas**: nunca distribua varios `set_tempo` graduais em cima de um fill de bateria; isso quebra a sensacao ritmica ao vivo. Troque o `set_tempo` de forma limpa ja no tempo 1 da virada para que o compasso inteiro de bateria fique travado no pulso da musica seguinte.
+- **Cortes fora da grade**: muitos MIDIs tem a frase real deslocada. Sempre localize o downbeat real olhando bumbo, baixo e mudanca de acorde antes de cortar.
+- **Reset `GM System On` no meio do medley**: enviar SysEx `F0 7E 7F 09 01 F7` no meio de um arquivo provoca mudo momentaneo ou engasgo em teclados arranger. Substitua por `CC64=0`, `CC123=0`, `CC121=0` + `program_change` no tempo 2.5 do compasso de virada.
+- **Sobrescrever fade-outs ao subir volume**: sempre cheque a contagem de eventos `CC7` por canal antes de normalizar volumes para nao destruir crescendos ou fade-outs originais.
+- **Notas desalinhadas na entrada da banda**: em alguns MIDIs comerciais, baixo/acorde e bateria entram com 4 a 16 ticks de diferenca no primeiro compasso; quantize o downbeat de entrada da musica B para o tick exato da entrada para que toda a banda ataque junta apos a virada.
