@@ -10,6 +10,7 @@ O material principal é o **fazer-midi**: orienta a IA na separação de instrum
 | --- | --- |
 | [fazer-midi.md](fazer-midi.md) | Orientações completas para criar e revisar MIDI multipista e karaokê. |
 | [Fix-mid.md](Fix-mid.md) | Prompt geral para diagnosticar e corrigir problemas de código; apesar do nome, não contém um procedimento específico de edição musical. |
+| [unir-mids.md](unir-mids.md) | Une dois ou mais MIDI em um medley/pot-pourri, corrigindo viradas, BPMs, encaixe harmônico, volume e brilho para uso ao vivo no vanBasco e teclados GM. |
 
 Estes arquivos são instruções em Markdown para uma IA. Não são um programa instalável nem executam a conversão sozinhos. O processamento depende das ferramentas, modelos e arquivos disponíveis no ambiente da IA.
 
